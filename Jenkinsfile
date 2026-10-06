@@ -169,15 +169,17 @@ pipeline {
                         set -e
 
                         ssh \
-                          -i "$SSH_KEY" \
-                          -o StrictHostKeyChecking=no \
-                          -o UserKnownHostsFile=/dev/null \
-                          "$SSH_USER@$SWARM_MANAGER" \
-                          "
-                          docker stack deploy \
-                            -c /tmp/docker-stack-deploy.yml \
-                            homework2
-                          "
+                        -i "$SSH_KEY" \
+                        -o IdentitiesOnly=yes \
+                        -o StrictHostKeyChecking=no \
+                        -o UserKnownHostsFile=/dev/null \
+                        "$SSH_USER@$SWARM_MANAGER" \
+                        "
+                        sudo docker stack deploy \
+                          --with-registry-auth \
+                          -c /tmp/docker-stack-deploy.yml \
+                          homework2
+                        "
                     '''
                 }
             }

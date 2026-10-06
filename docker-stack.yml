@@ -2,7 +2,8 @@ version: "3.8"
 
 services:
   web:
-    image: 464604123652.dkr.ecr.us-east-1.amazonaws.com/usea-homework2:v1
+    # image: 464604123652.dkr.ecr.us-east-1.amazonaws.com/usea-homework2:v1
+    image: IMAGE_PLACEHOLDER
 
     ports:
       - "8888:80"
