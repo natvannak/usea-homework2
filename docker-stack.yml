@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  web:
+    image: 464604123652.dkr.ecr.us-east-1.amazonaws.com/usea-homework2:v1
+
+    ports:
+      - "8888:80"
+
+    deploy:
+      replicas: 2
+
+      restart_policy:
+        condition: on-failure
+
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: overlay
