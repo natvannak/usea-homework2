@@ -104,7 +104,17 @@ pipeline {
                 '''
             }
         }
-
+        stage('Test SSH') {
+            steps {
+                sshagent(['ec2-ssh-key']) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no \
+                            ubuntu@184.73.20.152 \
+                            "whoami && hostname"
+                    '''
+                }
+            }
+        }
         stage('Copy Stack to Swarm Manager') {
             steps {
                 sh '''
@@ -116,17 +126,15 @@ pipeline {
             }
         }
 
-        stage('Deploy to Docker Swarm') {
+        stage('Deploy Stack') {
             steps {
-                sh '''
-                    ssh \
-                      -o StrictHostKeyChecking=no \
-                      ${MANAGER_USER}@${MANAGER_HOST} \
-                      "docker stack deploy \
-                       --with-registry-auth \
-                       -c /home/${MANAGER_USER}/docker-stack.yml \
-                       usea-app"
-                '''
+                sshagent(['ec2-ssh-key']) {
+                    sh '''
+                        scp -o StrictHostKeyChecking=no \
+                            docker-stack-deploy.yml \
+                            ubuntu@184.73.20.152:/home/ubuntu/projects/docker-stack.yml
+                    '''
+                }
             }
         }
 
