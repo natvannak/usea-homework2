@@ -102,39 +102,28 @@ pipeline {
 
         stage('Test SSH') {
             steps {
+
                 withCredentials([
-                    file(
+                    sshUserPrivateKey(
                         credentialsId: "${SSH_CREDENTIALS}",
-                        variable: 'SSH_KEY'
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
                     )
                 ]) {
+
                     sh '''
                         set -e
-                        set +x
 
-                        chmod 400 "$SSH_KEY"
-
-                        echo "======================================"
-                        echo "Validating SSH Private Key"
-                        echo "======================================"
-
-                        ssh-keygen -y -f "$SSH_KEY" > /dev/null
-                        echo "SSH key format is valid."
-
-                        echo ""
                         echo "======================================"
                         echo "Testing SSH"
                         echo "======================================"
 
                         ssh \
                           -i "$SSH_KEY" \
-                          -o IdentitiesOnly=yes \
-                          -o BatchMode=yes \
-                          -o ConnectTimeout=10 \
                           -o StrictHostKeyChecking=no \
                           -o UserKnownHostsFile=/dev/null \
                           "$SSH_USER@$SWARM_MANAGER" \
-                          "hostname && whoami"
+                          "hostname"
                     '''
                 }
             }
