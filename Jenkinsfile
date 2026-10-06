@@ -158,10 +158,9 @@ pipeline {
             steps {
 
                 withCredentials([
-                    sshUserPrivateKey(
+                    file(
                         credentialsId: "${SSH_CREDENTIALS}",
-                        keyFileVariable: 'SSH_KEY',
-                        usernameVariable: 'SSH_USER'
+                        variable: 'SSH_KEY'
                     )
                 ]) {
 
@@ -174,12 +173,10 @@ pipeline {
                         -o StrictHostKeyChecking=no \
                         -o UserKnownHostsFile=/dev/null \
                         "$SSH_USER@$SWARM_MANAGER" \
-                        "
-                        sudo docker stack deploy \
-                          --with-registry-auth \
-                          -c /tmp/docker-stack-deploy.yml \
-                          homework2
-                        "
+                        "sudo docker stack deploy \
+                        --with-registry-auth \
+                        -c /tmp/docker-stack-deploy.yml \
+                        homework2"
                     '''
                 }
             }
