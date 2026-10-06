@@ -1,177 +1,350 @@
 pipeline {
 
-    agent any
+agent any
 
-    environment {
-        AWS_REGION     = 'us-east-1'
-        AWS_ACCOUNT_ID = '464604123652'
-        ECR_REPO       = 'usea-homework2'
+  environment {
 
-        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        ECR_IMAGE    = "${ECR_REGISTRY}/${ECR_REPO}"
+      // =====================================================
+      // AWS / ECR Configuration
+      // =====================================================
+      AWS_REGION     = 'us-east-1'
+      AWS_ACCOUNT_ID = '464604123652'
+      ECR_REPO       = 'usea-homework2'
 
-        IMAGE_TAG = "${BUILD_NUMBER}"
+      ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+      ECR_IMAGE    = "${ECR_REGISTRY}/${ECR_REPO}"
 
-        MANAGER_HOST = '184.73.20.152'
-        MANAGER_USER = 'ubuntu'
-    }
+      // Use Jenkins Build Number as image tag
+      IMAGE_TAG = "${BUILD_NUMBER}"
 
-    stages {
+      // =====================================================
+      // Docker Swarm Manager
+      // =====================================================
+      MANAGER_HOST = '184.73.20.152'
+      MANAGER_USER = 'ubuntu'
 
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
+      // =====================================================
+      // macOS Jenkins PATH
+      // Docker = /usr/local/bin/docker
+      // Git    = /opt/homebrew/bin/git
+      // AWS CLI = /opt/homebrew/bin/aws
+      // =====================================================
+      PATH = '/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin'
+  }
 
-        stage('Check Docker & AWS') {
-            steps {
-                sh '''
-                    export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+  stages {
 
-                    echo "===== Docker ====="
-                    which docker
-                    docker --version
+      // =====================================================
+      // 1. Checkout
+      // =====================================================
+      stage('Checkout') {
+          steps {
+              checkout scm
+          }
+      }
 
-                    echo "===== Docker Buildx ====="
-                    docker buildx version
+      // =====================================================
+      // 2. Check Tools
+      // =====================================================
+      stage('Check Docker & AWS') {
+          steps {
+              sh '''
+                  set -e
 
-                    echo "===== AWS CLI ====="
-                    which aws
-                    aws --version
-                '''
-            }
-        }
+                  echo "======================================"
+                  echo "Checking Docker"
+                  echo "======================================"
 
-        stage('ECR Login') {
-            steps {
-                sh '''
-                    export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+                  which docker
+                  docker --version
 
-                    aws ecr get-login-password \
+                  echo ""
+                  echo "======================================"
+                  echo "Checking Docker Buildx"
+                  echo "======================================"
+
+                  docker buildx version
+
+                  echo ""
+                  echo "======================================"
+                  echo "Checking Git"
+                  echo "======================================"
+
+                  which git
+                  git --version
+
+                  echo ""
+                  echo "======================================"
+                  echo "Checking AWS CLI"
+                  echo "======================================"
+
+                  which aws
+                  aws --version
+              '''
+          }
+      }
+
+      // =====================================================
+      // 3. ECR Login
+      // =====================================================
+      stage('ECR Login') {
+          steps {
+              sh '''
+                  set -e
+
+                  echo "Logging in to Amazon ECR..."
+
+                  aws ecr get-login-password \
                       --region ${AWS_REGION} \
-                    | docker login \
+                  | docker login \
                       --username AWS \
                       --password-stdin ${ECR_REGISTRY}
-                '''
-            }
-        }
 
-        stage('Build & Push Multi-Platform') {
-            steps {
-                sh '''
-                    export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+                  echo "ECR login successful."
+              '''
+          }
+      }
 
-                    echo "Building image:"
-                    echo "${ECR_IMAGE}:${IMAGE_TAG}"
+      // =====================================================
+      // 4. Build & Push Multi-Platform Image
+      // =====================================================
+      stage('Build & Push Multi-Platform') {
+          steps {
+              sh '''
+                  set -e
 
-                    echo "Platforms:"
-                    echo "linux/amd64"
-                    echo "linux/arm64"
+                  echo "======================================"
+                  echo "Building Docker Image"
+                  echo "======================================"
 
-                    docker buildx build \
+                  echo "Image:"
+                  echo "${ECR_IMAGE}:${IMAGE_TAG}"
+
+                  echo ""
+                  echo "Platforms:"
+                  echo "linux/amd64"
+                  echo "linux/arm64"
+
+                  docker buildx build \
                       --platform linux/amd64,linux/arm64 \
                       -t ${ECR_IMAGE}:${IMAGE_TAG} \
                       --push \
                       .
-                '''
-            }
-        }
 
-        stage('Verify ECR Image') {
-            steps {
-                sh '''
-                    export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+                  echo ""
+                  echo "Docker image pushed successfully."
+              '''
+          }
+      }
 
-                    echo "===== Image Manifest ====="
+      // =====================================================
+      // 5. Verify ECR Image
+      // =====================================================
+      stage('Verify ECR Image') {
+          steps {
+              sh '''
+                  set -e
 
-                    docker buildx imagetools inspect \
+                  echo "======================================"
+                  echo "Verifying ECR Image"
+                  echo "======================================"
+
+                  docker buildx imagetools inspect \
                       ${ECR_IMAGE}:${IMAGE_TAG}
-                '''
-            }
-        }
+              '''
+          }
+      }
 
-        stage('Prepare Docker Stack') {
-            steps {
-                sh '''
-                    sed \
+      // =====================================================
+      // 6. Prepare Docker Stack
+      // =====================================================
+      stage('Prepare Docker Stack') {
+          steps {
+              sh '''
+                  set -e
+
+                  echo "======================================"
+                  echo "Preparing Docker Stack"
+                  echo "======================================"
+
+                  if [ ! -f docker-stack.yml ]; then
+                      echo "ERROR: docker-stack.yml not found."
+                      exit 1
+                  fi
+
+                  sed \
                       "s|IMAGE_PLACEHOLDER|${ECR_IMAGE}:${IMAGE_TAG}|g" \
                       docker-stack.yml \
                       > docker-stack-deploy.yml
 
-                    echo "===== Docker Stack ====="
-                    cat docker-stack-deploy.yml
-                '''
-            }
-        }
-        stage('Test SSH') {
-            steps {
-                sshagent(['ec2-ssh-key']) {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no \
-                            ubuntu@184.73.20.152 \
-                            "whoami && hostname"
-                    '''
-                }
-            }
-        }
-        stage('Copy Stack to Swarm Manager') {
-            steps {
-                sh '''
-                    scp \
-                      -o StrictHostKeyChecking=no \
-                      docker-stack-deploy.yml \
-                      ${MANAGER_USER}@${MANAGER_HOST}:/home/${MANAGER_USER}/projects/docker-stack.yml
-                '''
-            }
-        }
+                  echo ""
+                  echo "===== Generated Docker Stack ====="
 
-        stage('Deploy Stack') {
-            steps {
-                sshagent(['ec2-ssh-key']) {
-                    sh '''
-                        scp -o StrictHostKeyChecking=no \
-                            docker-stack-deploy.yml \
-                            ubuntu@184.73.20.152:/home/ubuntu/projects/docker-stack.yml
-                    '''
-                }
-            }
-        }
+                  cat docker-stack-deploy.yml
+              '''
+          }
+      }
 
-        stage('Verify Swarm Services') {
-            steps {
-                sh '''
+      // =====================================================
+      // 7. Test SSH
+      // =====================================================
+      stage('Test SSH') {
+        steps {
+        sshagent(['ec2-ssh-key']) {
+        sh '''
+        set -e
+
+                    echo "======================================"
+                    echo "TEST SSH CONNECTION"
+                    echo "======================================"
+
+                    echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK"
+
+                    echo ""
+                    echo "Checking SSH key..."
+                    ssh-add -l
+
+                    echo ""
+                    echo "Testing connection to:"
+                    echo "ubuntu@184.73.20.152"
+
                     ssh \
-                      -o StrictHostKeyChecking=no \
-                      ${MANAGER_USER}@${MANAGER_HOST} \
-                      "docker service ls"
-                '''
+                        -o StrictHostKeyChecking=no \
+                        -o UserKnownHostsFile=/dev/null \
+                        -o ConnectTimeout=10 \
+                        -o BatchMode=yes \
+                        ubuntu@184.73.20.152 \
+                        "echo SSH_SUCCESS && whoami && hostname"
 
-                sh '''
-                    ssh \
-                      -o StrictHostKeyChecking=no \
-                      ${MANAGER_USER}@${MANAGER_HOST} \
-                      "docker service ps usea-app_web --no-trunc"
+                    echo ""
+                    echo "======================================"
+                    echo "SSH TEST PASSED"
+                    echo "======================================"
                 '''
             }
         }
-    }
+      }
 
-    post {
-        success {
-            echo 'CI/CD deployment completed successfully.'
-            echo "Image: ${ECR_IMAGE}:${IMAGE_TAG}"
-            echo 'Platforms: linux/amd64, linux/arm64'
-        }
 
-        failure {
-            echo 'CI/CD pipeline failed.'
-        }
 
-        always {
-            sh '''
-                rm -f docker-stack-deploy.yml || true
-            '''
-        }
-    }
+      // =====================================================
+      // 8. Copy Stack to Swarm Manager
+      // =====================================================
+      stage('Copy Stack to Swarm Manager') {
+          steps {
+              sshagent(['ec2-ssh-key']) {
+                  sh '''
+                      set -e
+
+                      echo "======================================"
+                      echo "Copying Docker Stack"
+                      echo "======================================"
+
+                      ssh \
+                          -o StrictHostKeyChecking=no \
+                          ${MANAGER_USER}@${MANAGER_HOST} \
+                          "mkdir -p /home/${MANAGER_USER}/projects"
+
+                      scp \
+                          -o StrictHostKeyChecking=no \
+                          docker-stack-deploy.yml \
+                          ${MANAGER_USER}@${MANAGER_HOST}:/home/${MANAGER_USER}/projects/docker-stack.yml
+
+                      echo ""
+                      echo "Docker stack copied successfully."
+                  '''
+              }
+          }
+      }
+
+      // =====================================================
+      // 9. Deploy Stack
+      // =====================================================
+      stage('Deploy Stack') {
+          steps {
+              sshagent(['ec2-ssh-key']) {
+                  sh '''
+                      set -e
+
+                      echo "======================================"
+                      echo "Deploying Docker Swarm Stack"
+                      echo "======================================"
+
+                      ssh \
+                          -o StrictHostKeyChecking=no \
+                          ${MANAGER_USER}@${MANAGER_HOST} \
+                          "docker stack deploy \
+                              -c /home/${MANAGER_USER}/projects/docker-stack.yml \
+                              usea-app"
+
+                      echo ""
+                      echo "Docker Swarm stack deployed successfully."
+                  '''
+              }
+          }
+      }
+
+      // =====================================================
+      // 10. Verify Swarm Services
+      // =====================================================
+      stage('Verify Swarm Services') {
+          steps {
+              sshagent(['ec2-ssh-key']) {
+                  sh '''
+                      set -e
+
+                      echo "======================================"
+                      echo "Docker Swarm Services"
+                      echo "======================================"
+
+                      ssh \
+                          -o StrictHostKeyChecking=no \
+                          ${MANAGER_USER}@${MANAGER_HOST} \
+                          "docker service ls"
+
+                      echo ""
+                      echo "======================================"
+                      echo "USEA APP Service"
+                      echo "======================================"
+
+                      ssh \
+                          -o StrictHostKeyChecking=no \
+                          ${MANAGER_USER}@${MANAGER_HOST} \
+                          "docker service ps usea-app_web --no-trunc"
+                  '''
+              }
+          }
+      }
+  }
+
+  // =========================================================
+  // POST ACTIONS
+  // =========================================================
+  post {
+
+      success {
+          echo '======================================'
+          echo 'CI/CD Deployment Successful'
+          echo '======================================'
+
+          echo "Image: ${ECR_IMAGE}:${IMAGE_TAG}"
+          echo "Platforms: linux/amd64, linux/arm64"
+          echo "Swarm Manager: ${MANAGER_USER}@${MANAGER_HOST}"
+          echo "Stack: usea-app"
+      }
+
+      failure {
+          echo '======================================'
+          echo 'CI/CD Pipeline Failed'
+          echo '======================================'
+
+          echo 'Please check the failed stage and Jenkins console log.'
+      }
+
+      always {
+          sh '''
+              rm -f docker-stack-deploy.yml || true
+          '''
+      }
+  }
 }
