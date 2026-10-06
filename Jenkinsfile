@@ -111,7 +111,7 @@ pipeline {
                     scp \
                       -o StrictHostKeyChecking=no \
                       docker-stack-deploy.yml \
-                      ${MANAGER_USER}@${MANAGER_HOST}:/home/${MANAGER_USER}/docker-stack.yml
+                      ${MANAGER_USER}@${MANAGER_HOST}:/home/${MANAGER_USER}/projects/docker-stack.yml
                 '''
             }
         }
