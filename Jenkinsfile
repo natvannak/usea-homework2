@@ -8,7 +8,7 @@ pipeline {
         IMAGE_TAG       = "${BUILD_NUMBER}"
         ECR_IMAGE       = "${ECR_REGISTRY}/${ECR_REPOSITORY}"
 
-        SWARM_MANAGER   = '44.203.104.176'
+        SWARM_MANAGER   = '184.73.20.152'
         SSH_CREDENTIALS = 'swarm-ssh-key'
 
         PATH = '/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin'
