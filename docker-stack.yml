@@ -1,19 +1,18 @@
 version: "3.8"
-  
+
 services:
   web:
     image: IMAGE_PLACEHOLDER
+
     ports:
       - "8888:80"
+
     deploy:
       replicas: 2
 
       placement:
         preferences:
           - spread: node.id
-
-    deploy:
-      replicas: 2
 
       restart_policy:
         condition: on-failure
