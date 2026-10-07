@@ -100,34 +100,34 @@ pipeline {
             }
         }
 
-        stage('Test SSH') {
-            steps {
+        // stage('Test SSH') {
+        //     steps {
 
-                withCredentials([
-                    sshUserPrivateKey(
-                        credentialsId: "${SSH_CREDENTIALS}",
-                        keyFileVariable: 'SSH_KEY',
-                        usernameVariable: 'SSH_USER'
-                    )
-                ]) {
+        //         withCredentials([
+        //             sshUserPrivateKey(
+        //                 credentialsId: "${SSH_CREDENTIALS}",
+        //                 keyFileVariable: 'SSH_KEY',
+        //                 usernameVariable: 'SSH_USER'
+        //             )
+        //         ]) {
 
-                    sh '''
-                        set -e
+        //             sh '''
+        //                 set -e
 
-                        echo "======================================"
-                        echo "Testing SSH"
-                        echo "======================================"
+        //                 echo "======================================"
+        //                 echo "Testing SSH"
+        //                 echo "======================================"
 
-                        ssh \
-                          -i "$SSH_KEY" \
-                          -o StrictHostKeyChecking=no \
-                          -o UserKnownHostsFile=/dev/null \
-                          "$SSH_USER@$SWARM_MANAGER" \
-                          "hostname"
-                    '''
-                }
-            }
-        }
+        //                 ssh \
+        //                   -i "$SSH_KEY" \
+        //                   -o StrictHostKeyChecking=no \
+        //                   -o UserKnownHostsFile=/dev/null \
+        //                   "$SSH_USER@$SWARM_MANAGER" \
+        //                   "hostname"
+        //             '''
+        //         }
+        //     }
+        // }
 
         stage('Copy Stack To Swarm') {
             steps {
@@ -153,39 +153,9 @@ pipeline {
                 }
             }
         }
-        stage('ECR Login On Swarm Manager') {
-            steps {
-
-                withCredentials([
-                    sshUserPrivateKey(
-                        credentialsId: "${SSH_CREDENTIALS}",
-                        keyFileVariable: 'SSH_KEY',
-                        usernameVariable: 'SSH_USER'
-                    )
-                ]) {
-
-                    sh '''
-                        set -eux
-
-                        ssh \
-                        -i "$SSH_KEY" \
-                        -o IdentitiesOnly=yes \
-                        -o StrictHostKeyChecking=no \
-                        -o UserKnownHostsFile=/dev/null \
-                        "$SSH_USER@$SWARM_MANAGER" \
-                        "
-                        aws ecr get-login-password --region ${AWS_REGION} | \
-                        sudo docker login \
-                            --username AWS \
-                            --password-stdin \
-                            ${ECR_REGISTRY}
-                        "
-                    '''
-                }
-            }
-        }
         stage('Deploy Stack') {
             steps {
+
                 withCredentials([
                     sshUserPrivateKey(
                         credentialsId: "${SSH_CREDENTIALS}",
