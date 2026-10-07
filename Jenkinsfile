@@ -166,7 +166,7 @@ pipeline {
                 ]) {
 
                     sh '''
-                        set -e
+                        set -eux
 
                         ssh \
                         -i "$SSH_KEY" \
@@ -176,9 +176,11 @@ pipeline {
                         "$SSH_USER@$SWARM_MANAGER" \
                         "
                         sudo docker stack deploy \
-                          --with-registry-auth \
-                          -c /tmp/docker-stack-deploy.yml \
-                          homework2
+                            --with-registry-auth \
+                            -c /tmp/docker-stack-deploy.yml \
+                            homework2
+
+                        sudo docker service ls
                         "
                     '''
                 }
