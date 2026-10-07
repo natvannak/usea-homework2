@@ -1,6 +1,5 @@
 pipeline {
     agent any
-
     environment {
         AWS_REGION      = 'us-east-1'
         ECR_REGISTRY    = '464604123652.dkr.ecr.us-east-1.amazonaws.com'
@@ -74,31 +73,25 @@ pipeline {
             }
         }
 
-        // stage('Verify Image') {
-        //     steps {
-        //         sh '''
-        //             docker buildx imagetools inspect \
-        //             ${ECR_IMAGE}:${IMAGE_TAG}
-        //         '''
-        //     }
-        // }
+        stage('Verify Image') {
+            steps {
+                sh '''
+                    docker buildx imagetools inspect \
+                    ${ECR_IMAGE}:${IMAGE_TAG}
+                '''
+            }
+        }
 
-        // stage('Prepare Stack') {
-        //     steps {
-        //         sh '''
-        //             set -e
-
-        //             sed "s|IMAGE_PLACEHOLDER|${ECR_IMAGE}:${IMAGE_TAG}|g" \
-        //             docker-stack.yml > docker-stack-deploy.yml
-
-        //             echo "======================================"
-        //             echo "Generated Stack File"
-        //             echo "======================================"
-
-        //             cat docker-stack-deploy.yml
-        //         '''
-        //     }
-        // }
+        stage('Prepare Stack') {
+            steps {
+                sh '''
+                    set -e
+                    sed "s|IMAGE_PLACEHOLDER|${ECR_IMAGE}:${IMAGE_TAG}|g" \
+                    docker-stack.yml > docker-stack-deploy.yml
+                    cat docker-stack-deploy.yml
+                '''
+            }
+        }
 
         // stage('Test SSH') {
         //     steps {
