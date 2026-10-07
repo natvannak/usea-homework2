@@ -153,24 +153,39 @@ pipeline {
                 }
             }
         }
-        stage('ECR Login') {
+        stage('ECR Login On Swarm Manager') {
             steps {
-                sh '''
-                ssh -i "$SSH_KEY" \
-                "$SSH_USER@$SWARM_MANAGER" \
-                "
-                aws ecr get-login-password --region us-east-1 | \
-                sudo docker login \
-                --username AWS \
-                --password-stdin \
-                464604123652.dkr.ecr.us-east-1.amazonaws.com
-                "
-                '''
+
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: "${SSH_CREDENTIALS}",
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+
+                    sh '''
+                        set -eux
+
+                        ssh \
+                        -i "$SSH_KEY" \
+                        -o IdentitiesOnly=yes \
+                        -o StrictHostKeyChecking=no \
+                        -o UserKnownHostsFile=/dev/null \
+                        "$SSH_USER@$SWARM_MANAGER" \
+                        "
+                        aws ecr get-login-password --region ${AWS_REGION} | \
+                        sudo docker login \
+                            --username AWS \
+                            --password-stdin \
+                            ${ECR_REGISTRY}
+                        "
+                    '''
+                }
             }
         }
         stage('Deploy Stack') {
             steps {
-
                 withCredentials([
                     sshUserPrivateKey(
                         credentialsId: "${SSH_CREDENTIALS}",
